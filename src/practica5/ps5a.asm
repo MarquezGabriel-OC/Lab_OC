@@ -2,6 +2,7 @@
 								; que se encuentran en la biblioteca libpc_io.a
 
 section	.text
+	mov byte[msg], 'Z'
 	global _start       ;referencia para inicio de programa
 	
 _start:                   
@@ -10,6 +11,8 @@ _start:
 
 	mov	eax, 1	    	; seleccionar llamada al sistema para fin de programa
 	int	0x80        	; llamada al sistema - fin de programa
+    
+
 
 section	.data
     msg	db  'abcdefghijklmnopqrstuvwxyz0123456789',0xa,0 
