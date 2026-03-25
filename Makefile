@@ -1,4 +1,4 @@
-nothing: 
+nothing: ; sudo apt-get update / sudo apt-get install nasm
 	echo "salvar"	
 salvar:
 	git status
