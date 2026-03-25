@@ -1,6 +1,8 @@
 %include "../../lib/pc_io.inc"  	; incluir declaraciones de procedimiento externos
 								; que se encuentran en la biblioteca libpc_io.a
 
+; ----- CADENA TXT ------
+
 section	.text
 	global _start       ;referencia para inicio de programa
 	

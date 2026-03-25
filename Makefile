@@ -1,5 +1,5 @@
 nothing: 
-	echo "guardando"	
+	echo "salvar"	
 salvar:
 	git status
 	git add .
