@@ -2,10 +2,10 @@
 								; que se encuentran en la biblioteca libpc_io.a
 
 section	.text
-	mov byte[msg], 'Z'
 	global _start       ;referencia para inicio de programa
 	
-_start:                   
+_start:
+	mov byte [msg], 'Z'
 	mov edx, msg		; edx = dirección de la cadena msg
 	call puts			; imprime cadena msg terminada en valor nulo (0)
 
