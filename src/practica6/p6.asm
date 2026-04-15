@@ -1,12 +1,14 @@
-%include "../../lib/pc_io.inc"    ; incluir declaraciones de procedimiento externos
+%include "../../lib/pc_io.inc"   
 
 section .bss
-    cadena resb 64      ; Reserva 64 bytes (espacios) vacíos para lo que el usuario escriba
+    cadena resb 64      ; Reserva 64 espacios para la palabra
+    letra_temp resb 2   ; NUEVO: Cajita temporal para imprimir letra por letra
 
 section .data
     msg_ingreso db 'Escribe una frase (max 63 caracteres) y presiona Enter: ', 0
-    msg_mayus   db 10, 'Version Mayusculas: ', 0    ; El 10 inicial es un salto de línea
+    msg_mayus   db 10, 'Version Mayusculas: ', 0    
     msg_minus   db 10, 'Version Minusculas: ', 0
+    msg_borrar  db 8, 32, 8, 0
     msg_fin     db 10, 0
 
 section .text
@@ -17,12 +19,12 @@ _start:
     mov edx, msg_ingreso
     call puts
 
-    ; Preparar parámetros para el procedimiento Capturar
+    ; Preparar parametros para el procedimiento Capturar
     mov edx, cadena     ; edx = dirección donde se guardará la captura
     mov ax, 64          ; ax = número máximo de caracteres
     call Capturar
 
-    ; --- 2. MAYÚSCULAS ---
+    ; --- 2. MAYUSCULAS ---
     mov edx, msg_mayus
     call puts           ; Imprimir título
     
@@ -32,9 +34,9 @@ _start:
     mov edx, cadena
     call puts           ; Imprimir cadena modificada
 
-    ; --- 3. MINÚSCULAS ---
+    ; --- 3. MINUSCULAS ---
     mov edx, msg_minus
-    call puts           ; Imprimir título
+    call puts           ; Imprimir titulo
     
     mov edx, cadena     ; edx = inicio de la cadena
     call Minusculas     ; Convertir internamente
@@ -51,32 +53,56 @@ _start:
     int 0x80            ; llamada al sistema - fin de programa
 
 
-; =========================================================================
-;                       PROCEDIMIENTOS REQUERIDOS
-; =========================================================================
+; --------------------- SUBRUTINAS ----------------------
 
-; 1.Capturar
+; 1. Capturar (Con borrado visual perfecto)
 Capturar:
-    mov ecx, 0              ; ecx será nuestro Índice/Contador, empezamos en 0
-    dec ax                  ; Le restamos 1 al límite (64) para dejar espacio al nulo (0) al final
+    mov ecx, 0              ; cntador para las letras , inicia en 0              
+    dec ax                  ; decremanta el 64 a 63            
 
 .ciclo_leer:
-    cmp cx, ax              ; ¿Ya escribimos 63 letras?
-    je .fin_captura         ; Si sí, terminamos a la fuerza
+    cmp cx, ax              
+    je .fin_captura         
     
-    call getche             ; Leemos tecla (se muestra en pantalla y se guarda en registro AL)
+    call getch             
     
-    cmp al, 10              ; ¿Presionó Enter (salto de línea / ASCII 10)?
-    je .fin_captura         ; Si sí, dejamos de capturar
+    cmp al, 10              ; ¿Presionó Enter?
+    je .fin_captura         
 
-    mov byte [edx + ecx], al; Modo Base+Índice: Guardamos la letra en la memoria
-    inc ecx                 ; Aumentamos el contador en 1 (siguiente espacio)
-    jmp .ciclo_leer         ; Repetimos el ciclo
+    cmp al, 8               ; Backspace normal
+    je .borrar_letra
+    cmp al, 127             ; Backspace Linux
+    je .borrar_letra
+
+    ; --- Si es una letra normal ---
+    mov byte [edx + ecx], al    ; 1. La guardamos en la memoria principal
+    inc ecx                     ; 2. Avanzamos el contador
+
+    ; ¡SECRETO 2! Imprimimos la letra nosotros mismos
+    push edx                      ; Guardamos nuestra dirección base por seguridad
+    mov byte [letra_temp], al     ; Ponemos la letra en la variable temporal
+    mov byte [letra_temp + 1], 0  ; Cerramos con el nulo
+    mov edx, letra_temp           ; Le damos la letra a EDX
+    call puts                     ; Imprimimos la letra en pantalla
+    pop edx                       ; Recuperamos nuestra dirección base intacta
+    jmp .ciclo_leer
+
+.borrar_letra:
+    cmp ecx, 0              
+    je .ciclo_leer          ; Si estamos al inicio (0 letras), ignoramos el borrado
+    
+    dec ecx                 ; Borrado lógico en la memoria (retrocedemos el contador)
+
+    ;  Borrado
+    push edx
+    mov edx, msg_borrar     ; Mandamos la secuencia mágica (Atrás, Espacio, Atrás)
+    call puts
+    pop edx
+    jmp .ciclo_leer
 
 .fin_captura:
-    mov byte [edx + ecx], 0 ; Ponemos el carácter nulo al final para cerrar la cadena
-    ret                     ; Regresamos a la rutina principal (_start)
-
+    mov byte [edx + ecx], 0 
+    ret
 
 ; 2. Procedimiento Mayúsculas
 Mayusculas:
@@ -103,7 +129,6 @@ Mayusculas:
 
 .fin_mayus:
     ret
-
 
 ; 3. Procedimiento Minúsculas
 Minusculas:
