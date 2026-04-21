@@ -1,157 +1,181 @@
-%include "../../lib/pc_io.inc"   
+%include "../../lib/pc_io.inc" 
 
-section .bss
-    cadena resb 64      ; Reserva 64 espacios para la palabra
-    letra_temp resb 2   ; NUEVO: Cajita temporal para imprimir letra por letra
+section .bss 
+cadena resb 64 ; cajita 64 espacios 
+letra_temporal resb 2 ; para sustituir ecx  
 
-section .data
-    msg_ingreso db 'Escribe una frase (max 63 caracteres) y presiona Enter: ', 0
-    msg_mayus   db 10, 'Version Mayusculas: ', 0    
-    msg_minus   db 10, 'Version Minusculas: ', 0
-    msg_borrar  db 8, 32, 8, 0
-    msg_fin     db 10, 0
+section .data 
+msg_captura   db 'Ingresa una cadena (max 63 caracteres) y preciona ENTER: ', 0
+msg_mayuscula db  10, 'Texto en mayuscula: ', 0
+msg_minuscula db  10, 'Texto en minuscula: ', 0
+msg_borrar    db 8, 32, 8, 0 
+msg_fin       db 10, 0
 
-section .text
-    global _start       ; referencia para inicio de programa
+section .text 
+global _start 
 
 _start:
-    ; --- 1. PEDIR DATOS ---
-    mov edx, msg_ingreso
-    call puts
+; 1. Captura 
+mov edx, msg_captura   ; lo que te aprece en la terminal 
+call puts
 
-    ; Preparar parametros para el procedimiento Capturar
-    mov edx, cadena     ; edx = dirección donde se guardará la captura
-    mov ax, 64          ; ax = número máximo de caracteres
-    call Capturar
+mov edx, cadena 
+mov ax, 64
+call Captura 
 
-    ; --- 2. MAYUSCULAS ---
-    mov edx, msg_mayus
-    call puts           ; Imprimir título
-    
-    mov edx, cadena     ; edx = inicio de la cadena capturada
-    call Mayusculas     ; Convertir internamente
-    
-    mov edx, cadena
-    call puts           ; Imprimir cadena modificada
+; 2. Mayuscula
+mov edx, msg_mayuscula ; lo que te aparece en la terminal 
+call puts 
 
-    ; --- 3. MINUSCULAS ---
-    mov edx, msg_minus
-    call puts           ; Imprimir titulo
-    
-    mov edx, cadena     ; edx = inicio de la cadena
-    call Minusculas     ; Convertir internamente
-    
-    mov edx, cadena
-    call puts           ; Imprimir cadena modificada
+mov edx, cadena 
+call Mayuscula
 
-    ; Imprimir un salto de línea final para que la terminal se vea limpia
-    mov edx, msg_fin
-    call puts
+mov edx, cadena        ; imprimir cadena modificada Mayuscula
+call puts 
 
-    ; --- FIN DEL PROGRAMA ---
-    mov eax, 1          ; seleccionar llamada al sistema para fin de programa
-    int 0x80            ; llamada al sistema - fin de programa
+; 3. Minuscula
+mov edx, msg_minuscula ; lo que te aparece en la terminal 
+call puts 
 
+mov edx, cadena        ; imprimir cadena modificada Minuscula
+call Minuscula
 
-; --------------------- SUBRUTINAS ----------------------
+mov edx, cadena
+call puts
 
-; 1. Capturar (Con borrado visual perfecto)
-Capturar:
-    mov ecx, 0              ; cntador para las letras , inicia en 0              
-    dec ax                  ; decremanta el 64 a 63            
+; Ultimo salto de linea 
+mov edx, msg_fin
+call puts 
 
-.ciclo_leer:
-    cmp cx, ax              
-    je .fin_captura         
-    
-    call getch             
-    
-    cmp al, 10              ; ¿Presionó Enter?
-    je .fin_captura         
+; 4. Fin 
+mov eax, 1
+int 0x80 
 
-    cmp al, 8               ; Backspace normal
-    je .borrar_letra
-    cmp al, 127             ; Backspace Linux
-    je .borrar_letra
+; -------- SUBRUTINAS ------- 
 
-    ; --- Si es una letra normal ---
-    mov byte [edx + ecx], al    ; 1. La guardamos en la memoria principal
-    inc ecx                     ; 2. Avanzamos el contador
+; 1. CAMPTURA 
+Captura:
+mov ecx, 0 ; contador letras 
+dec ax     ; decrementar en 1 para el caracter nulo 
 
-    ; ¡SECRETO 2! Imprimimos la letra nosotros mismos
-    push edx                      ; Guardamos nuestra dirección base por seguridad
-    mov byte [letra_temp], al     ; Ponemos la letra en la variable temporal
-    mov byte [letra_temp + 1], 0  ; Cerramos con el nulo
-    mov edx, letra_temp           ; Le damos la letra a EDX
-    call puts                     ; Imprimimos la letra en pantalla
-    pop edx                       ; Recuperamos nuestra dirección base intacta
-    jmp .ciclo_leer
+.Ciclo_leer: 
+    cmp cx, ax 
+    je .fin_captura 
+
+    call getch
+
+    cmp al, 10
+    je .fin_captura 
+
+    cmp al, 8 
+    je .borrar_letra 
+
+    cmp al, 127
+    je .borrar_letra 
+
+    ; ------ IMPRIMR LETRA (SIN getche) ------
+    mov byte [edx + ecx], al
+    inc ecx 
+
+    push edx 
+    mov byte [letra_temporal], al
+    mov byte [letra_temporal + 1], 0
+    mov edx, letra_temporal 
+    call puts 
+    pop edx 
+    jmp .Ciclo_leer
 
 .borrar_letra:
-    cmp ecx, 0              
-    je .ciclo_leer          ; Si estamos al inicio (0 letras), ignoramos el borrado
-    
-    dec ecx                 ; Borrado lógico en la memoria (retrocedemos el contador)
+    cmp ecx, 0           
+    je .Ciclo_leer      ; si estamos al inicio (0 letras), ingoramos el borrador 
 
-    ;  Borrado
-    push edx
-    mov edx, msg_borrar     ; Mandamos la secuencia mágica (Atrás, Espacio, Atrás)
-    call puts
-    pop edx
-    jmp .ciclo_leer
+    dec ecx
+    ; Borrar 
+    push edx 
+    mov edx, msg_borrar
+    call puts 
+    pop edx 
+    jmp .Ciclo_leer
 
 .fin_captura:
-    mov byte [edx + ecx], 0 
-    ret
+mov byte [edx + ecx], 0
+ret
 
-; 2. Procedimiento Mayúsculas
-Mayusculas:
-    mov ecx, 0              ; Reiniciamos contador a 0
+; 2. Mayuscula
+Mayuscula:
+mov ecx, 0 
 
-.ciclo_mayus:
-    mov al, byte [edx + ecx]; Tomamos la letra actual
-    cmp al, 0               ; ¿Es el fin de la cadena (nulo)?
-    je .fin_mayus           ; Si sí, terminamos
-    
-    ; Condicional (If): ¿Es letra minúscula (entre 'a' y 'z')?
-    cmp al, 'a'             
-    jl .siguiente_mayus     ; Si es un símbolo antes de la 'a', lo ignoramos
+.ciclo_mayuscula: 
+    mov al, byte [edx + ecx]  ;tomamos letra actual 
+    cmp al, 0 
+    je .fin_mayus
+
+    cmp al, 'a'
+    jl .siguiente_mayus       ; si es mayuscula pasa a la siguente letra / jl= si  (al)  es menor a 'a'
     cmp al, 'z'
-    jg .siguiente_mayus     ; Si es un símbolo después de la 'z', lo ignoramos
+    jg .siguiente_mayus       ; si es mayuscula pasa a la siguente letra / jg= si  (al)  es mayor a 'z'
 
-    ; Si pasó los filtros, ES minúscula. La convertimos restando 32
+    ; SI, SI es minucula: 
     sub al, 32
-    mov byte [edx + ecx], al; Guardamos la letra ya convertida de vuelta en memoria
+    mov byte [edx + ecx], al 
 
 .siguiente_mayus:
-    inc ecx                 ; Siguiente letra
-    jmp .ciclo_mayus        ; Repetimos
+inc ecx 
+jmp .ciclo_mayuscula
 
 .fin_mayus:
-    ret
+ret
 
-; 3. Procedimiento Minúsculas
-Minusculas:
-    mov ecx, 0              ; Reiniciamos contador a 0
+; 3. Minuscula
+Minuscula:
+mov ecx, 0
 
-.ciclo_minus:
-    mov al, byte [edx + ecx]; Tomamos la letra actual
-    cmp al, 0               ; ¿Es el fin de la cadena (nulo)?
-    je .fin_minus           
-    
-    ; Condicional (If): ¿Es letra MAYÚSCULA (entre 'A' y 'Z')?
-    cmp al, 'A'             
-    jl .siguiente_minus     
+.ciclo_minusculas: 
+    mov al, byte [edx + ecx]
+    cmp al, 0
+    je .fin_minus
+
+    cmp al, 'A'
+    jl .siguente_minus 
     cmp al, 'Z'
-    jg .siguiente_minus     
+    jg .siguente_minus
 
-    ; Si pasó los filtros, ES mayúscula. La convertimos sumando 32
-    add al, 32
-    mov byte [edx + ecx], al; Guardamos en memoria
+    ;SI, SI es 
+    add al, 32 
+    mov byte [edx + ecx], al 
 
-.siguiente_minus:
-    inc ecx                 
-    jmp .ciclo_minus        
+.siguente_minus:
+    inc ecx
+    jmp .ciclo_minusculas
 
 .fin_minus:
-    ret
+ret
+    
+
+
+
+
+
+
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
